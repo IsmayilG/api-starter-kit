@@ -2,8 +2,12 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
+import { handleError } from './middlewares/validation.middleware';
+import { prisma } from './config/db';
 
 const app: Application = express();
 
@@ -13,13 +17,21 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-app.get('/health', (_req: Request, res: Response) => {
-    res.status(200).json({
-        status: 'ok',
-        message: 'API is running 🚀',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-    });
+app.get('/health', async (_req: Request, res: Response) => {
+  let database = 'disconnected';
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    database = 'connected';
+  } catch {
+    database = 'disconnected';
+  }
+
+  res.status(200).json({
+    status: 'ok',
+    message: 'API is running 🚀',
+    timestamp: new Date().toISOString(),
+    database,
+  });
 });
 
 app.get('/', (_req: Request, res: Response) => {
@@ -29,6 +41,9 @@ app.get('/', (_req: Request, res: Response) => {
         documentation: '/api-docs',
     });
 });
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
@@ -41,14 +56,7 @@ app.use((_req: Request, res: Response) => {
     });
 });
 
-// Global error handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error(err.stack);
-    res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined,
-    });
-});
+// Centralized error middleware (for AppError and Zod errors)
+app.use(handleError);
 
 export default app;

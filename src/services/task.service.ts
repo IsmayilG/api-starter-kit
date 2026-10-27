@@ -1,5 +1,12 @@
 import { TaskRepository } from "../repositories/task.repository";
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export class TaskService {
   private taskRepository: TaskRepository;
 
@@ -23,8 +30,21 @@ export class TaskService {
     return task;
   }
 
-  async getAllTasks(userId: string) {
-    return this.taskRepository.findAllByUser(userId);
+  async getAllTasks(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [tasks, total] = await Promise.all([
+      this.taskRepository.findAllByUser(userId, skip, limit),
+      this.taskRepository.countByUser(userId),
+    ]);
+
+    const meta: PaginationMeta = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return { tasks, meta };
   }
 
   async updateTask(id: string, userId: string, data: {

@@ -20,11 +20,17 @@ export class TaskRepository {
     return prisma.task.findFirst({ where: { id, userId } });
   }
 
-  async findAllByUser(userId: string): Promise<Task[]> {
+  async findAllByUser(userId: string, skip = 0, take = 10): Promise<Task[]> {
     return prisma.task.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      skip,
+      take,
     });
+  }
+
+  async countByUser(userId: string): Promise<number> {
+    return prisma.task.count({ where: { userId } });
   }
 
   async update(

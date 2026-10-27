@@ -1,31 +1,33 @@
 import { Router } from "express";
 import { TaskController } from "../controllers/task.controller";
+import { authenticate, authorize } from "../middlewares/rbac.middleware";
+import { validate } from "../middlewares/validation.middleware";
+import {
+  createTaskSchema,
+  updateTaskSchema,
+  getTaskSchema,
+  deleteTaskSchema,
+  taskQuerySchema,
+} from "../utils/validation-schemas.util";
 
 const router = Router();
 const taskController = new TaskController();
 
-// Apply auth middleware inline for simplicity
-router.use((req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-  try {
-    const token = authHeader.split(" ")[1];
-    const jwt = require("jsonwebtoken");
-    const { env } = require("../config/env");
-    const decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string };
-    (req as any).user = { userId: decoded.userId };
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: "Invalid token" });
-  }
-});
+// All task routes require authentication
+router.use(authenticate);
 
-router.post("/", taskController.create);
-router.get("/", taskController.list);
-router.get("/:id", taskController.getById);
-router.put("/:id", taskController.update);
-router.delete("/:id", taskController.delete);
+router.post("/", validate(createTaskSchema), taskController.create);
+router.get("/", validate(taskQuerySchema), taskController.list);
+router.get("/:id", validate(getTaskSchema), taskController.getById);
+router.put("/:id", validate(updateTaskSchema), taskController.update);
+router.delete("/:id", validate(deleteTaskSchema), taskController.delete);
+
+// Admin-only route example
+router.get("/admin/all", authorize("ADMIN"), (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Admin-only endpoint accessed",
+  });
+});
 
 export default router;
