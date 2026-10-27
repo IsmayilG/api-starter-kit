@@ -42,13 +42,11 @@ app.get('/', (_req: Request, res: Response) => {
     });
 });
 
-// Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 
-// 404 handler
 app.use((_req: Request, res: Response) => {
     res.status(404).json({
         success: false,
@@ -56,7 +54,6 @@ app.use((_req: Request, res: Response) => {
     });
 });
 
-// Centralized error middleware (for AppError and Zod errors)
 app.use(handleError);
 
 export default app;
