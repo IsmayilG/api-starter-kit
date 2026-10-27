@@ -1,22 +1,23 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
+import { z } from "zod";
 
 dotenv.config();
 
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  PORT: z.string().default("3000"),
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(1),
+  JWT_EXPIRES_IN: z.string().default("15m"),
+  JWT_REFRESH_SECRET: z.string().min(1),
+  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+});
 
-for (const varName of requiredEnvVars) {
-  if (!process.env[varName]) {
-    console.error(`❌ Missing required environment variable: ${varName}`);
-    process.exit(1);
-  }
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error("❌ Invalid environment variables:", parsed.error.format());
+  process.exit(1);
 }
 
-export const env = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  PORT: process.env.PORT || '3000',
-  DATABASE_URL: process.env.DATABASE_URL as string,
-  JWT_SECRET: process.env.JWT_SECRET as string,
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '15m',
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET as string,
-  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-};
+export const env = parsed.data;
